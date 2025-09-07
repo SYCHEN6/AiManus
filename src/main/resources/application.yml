@@ -1,6 +1,14 @@
 spring:
   application:
     name: AI-Agent
+  profiles:
+    active: local
+  # ollama??????
+#  ai:
+#    ollama:
+#      base-url: http://localhost:11434
+#      chat:
+#        model: gemma3:1b
 server:
   port: 9888
   servlet:

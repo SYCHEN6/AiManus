@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: AI-Agent
+server:
+  port: 9888
+  servlet:
+    context-path: /rest # ??????rest??
+# springdoc-openapi ??????
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  group-configs:
+    - group: 'default'
+      paths-to-match: '/**'
+      packages-to-scan: com.study.aiagent.controller # ????????
+# knife4j???????????????
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn

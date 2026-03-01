@@ -7,7 +7,11 @@ import dev.langchain4j.community.model.dashscope.QwenChatModel;
  */
 public class LangChainAiInvoke {
     public static void main(String[] args) {
-        QwenChatModel qwenChatModel = QwenChatModel.builder().apiKey(TestApiKey.API_KEY).modelName("qwen-max").build();
+        QwenChatModel qwenChatModel = QwenChatModel.builder()
+                .apiKey(TestApiKey.API_KEY)
+                .modelName("qwen3.5-plus") // 模型名称
+                .isMultimodalModel(true) // 多模态模型需要手动置为true
+                .build();
         String answer = qwenChatModel.chat("你好");
         System.out.println(answer);
     }

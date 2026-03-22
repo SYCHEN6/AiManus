@@ -87,6 +87,16 @@
             <artifactId>spring-ai-ollama-spring-boot-starter</artifactId>
             <version>1.0.0-M6</version>
         </dependency>
+        <!--spring ai 解析markdown-->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-markdown-document-reader</artifactId>
+            <version>1.0.0-M6</version>
+        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.springframework.ai</groupId>-->
+<!--            <artifactId>spring-ai-advisors-vector-store</artifactId>-->
+<!--        </dependency>-->
         <!--支持序列化-->
         <dependency>
             <groupId>com.esotericsoftware</groupId>

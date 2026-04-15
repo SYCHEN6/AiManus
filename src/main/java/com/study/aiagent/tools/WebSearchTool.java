@@ -4,6 +4,7 @@ import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +30,9 @@ public class WebSearchTool implements MyTool{
 
     @Tool(description = "Search for information from Baidu Search Engine")
     public String searchWeb(
-            @ToolParam(description = "Search query keyword") String query) {
+            @ToolParam(description = "Search query keyword") String query,
+            ToolContext context) {
+        System.out.println("chatId = " + context.getContext().get("chatId"));
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("q", query);
         paramMap.put("api_key", apiKey);

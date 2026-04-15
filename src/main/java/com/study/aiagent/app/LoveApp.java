@@ -1,6 +1,7 @@
 package com.study.aiagent.app;
 
 import com.study.aiagent.advisor.MyLoggerAdvisor;
+import com.study.aiagent.advisor.ThinkingContentFilterAdvisor;
 import com.study.aiagent.chatmemory.FileBasedChatMemery;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
@@ -17,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor.CHAT_MEMORY_CONVERSATION_ID_KEY;
 import static org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor.CHAT_MEMORY_RETRIEVE_SIZE_KEY;
@@ -139,9 +141,12 @@ public class LoveApp {
                 .user(message)
                 .advisors(spec -> spec.param(CHAT_MEMORY_CONVERSATION_ID_KEY, chatId)
                         .param(CHAT_MEMORY_RETRIEVE_SIZE_KEY, 10))
+                // 过滤思考模型的 <think> 内容，避免二次请求超过 6MB 限制
+                .advisors(new ThinkingContentFilterAdvisor())
                 // 开启日志，便于观察效果
                 .advisors(new MyLoggerAdvisor())
                 .tools(allTools)
+                .toolContext(Map.of("chatId", chatId))
                 .call()
                 .chatResponse();
         String content = response.getResult().getOutput().getText();

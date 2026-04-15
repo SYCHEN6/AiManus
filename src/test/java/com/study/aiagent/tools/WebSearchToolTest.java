@@ -2,6 +2,8 @@ package com.study.aiagent.tools;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Configuration;
@@ -17,9 +19,10 @@ class WebSearchToolTest {
 
     @Test
     void searchWeb() {
+        ToolContext context = Mockito.mock(ToolContext.class);
         WebSearchTool webSearchTool = new WebSearchTool(apikey);
         String query = "菜鸟教程 https://www.runoob.com/java/java-tutorial.html";
-        String result = webSearchTool.searchWeb(query);
+        String result = webSearchTool.searchWeb(query, context);
         System.out.println(result);
         Assertions.assertNotNull(result);
     }

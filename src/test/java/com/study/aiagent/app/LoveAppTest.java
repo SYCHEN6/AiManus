@@ -68,7 +68,9 @@ class LoveAppTest {
         // 测试 PDF 生成
 //        testMessage("生成一份‘七夕约会计划’PDF，包含餐厅预订、活动流程和礼物清单");
 
-        testMessage("读取tmp/pdf/七夕约会计划.pdf，整理约会详情");
+//        testMessage("读取tmp/pdf/七夕约会计划.pdf，整理约会详情");
+
+        testMessage("测试给1641717914@qq.com发邮件，主题是约会计划，内容是tmp/pdf/test.pdf");
     }
 
     private void testMessage(String message) {

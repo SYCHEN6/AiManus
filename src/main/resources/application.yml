@@ -3,6 +3,25 @@ spring:
     name: AI-Agent
   profiles:
     active: local
+#  mail:
+#    host: smtp.qq.com
+#    port: 465
+#    username: 邮箱       # 替换为你的 QQ 邮箱
+#    password: 授权码 # 替换为 QQ 邮箱授权码（非登录密码）
+#    protocol: smtp
+#    properties:
+#      mail:
+#        smtp:
+#          ssl:
+#            enable: true
+#          auth: true
+#  ai:
+#    dashscope:
+#      # 需要替换为你自己的 key
+#      api-key: key
+#      chat:
+#        options:
+#          model: MiniMax-M2.5
   # ollama??????
 #  ai:
 #    ollama:
@@ -33,3 +52,5 @@ knife4j:
 #logging:
 #  level:
 #    org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor: debug
+#search:
+#  api-key: key # 替换为你的搜索api key

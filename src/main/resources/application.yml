@@ -3,6 +3,11 @@ spring:
     name: AI-Agent
   profiles:
     active: local
+#  ai:
+#    mcp:
+#      client:
+#        stdio:
+#          servers-configuration: classpath:mcp-servers.json  # Linux/Mac/CI 使用，local profile 会覆盖此配置
 #  mail:
 #    host: smtp.qq.com
 #    port: 465
@@ -51,6 +56,8 @@ knife4j:
     language: zh_cn
 #logging:
 #  level:
-#    org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor: debug
+#    io.modelcontextprotocol: DEBUG
+#    org.springframework.ai.mcp: DEBUG
+#    org.springframework.ai.autoconfigure.mcp: DEBUG
 #search:
 #  api-key: key # 替换为你的搜索api key

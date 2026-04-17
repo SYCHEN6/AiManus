@@ -45,11 +45,10 @@ public class WebSearchTool implements MyTool{
             JSONArray organicResults = jsonObject.getJSONArray("top_searches");
             List<Object> objects = organicResults.subList(0, 5);
             // 拼接搜索结果为字符串
-            String result = objects.stream().map(obj -> {
+            return objects.stream().map(obj -> {
                 JSONObject tmpJSONObject = (JSONObject) obj;
                 return tmpJSONObject.toString();
             }).collect(Collectors.joining(","));
-            return result;
         } catch (Exception e) {
             return "Error searching Baidu: " + e.getMessage();
         }

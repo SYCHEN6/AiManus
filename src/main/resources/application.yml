@@ -3,6 +3,10 @@ spring:
     name: AI-Agent
   profiles:
     active: local
+
+# Agent 配置
+agent:
+  token-limit: 30000
 #  ai:
 #    mcp:
 #      client:

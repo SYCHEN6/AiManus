@@ -32,6 +32,11 @@ public abstract class BaseAgent {
     // 不使用ChatMemory, 自定义维护会化上下文
     private List<Message> messageList = new ArrayList<>();
 
+    // Token 成本限制
+    private int tokenLimit = 30000;
+
+    private int currentTokenUsage = 0;
+
     /**
      * 运行代理
      *
@@ -54,14 +59,21 @@ public abstract class BaseAgent {
         try {
             // 执行循环
             for (int i = 0; i < maxStep && this.state != AgentState.FINISHED; i++) {
+                // 检查 token 限制
+                if (currentTokenUsage >= tokenLimit) {
+                    state = AgentState.FINISHED;
+                    results.add("Terminated: Token usage limit exceeded (" + currentTokenUsage + "/" + tokenLimit + ")");
+                    break;
+                }
+
                 currentStep = i + 1;
-                log.info("Executing step {}/{}", currentStep, maxStep);
+                log.info("Executing step {}/{}, token usage: {}/{}", currentStep, maxStep, currentTokenUsage, tokenLimit);
                 // 单步执行
                 String stepResult = step();
                 String result = "Step " +  currentStep + ": " + stepResult;
                 results.add(result);
             }
-            if (currentStep >= maxStep) {
+            if (currentStep >= maxStep && this.state != AgentState.FINISHED) {
                 state = AgentState.FINISHED;
                 results.add("Terminated: Reached max steps (" + maxStep + ")");
             }
@@ -86,6 +98,7 @@ public abstract class BaseAgent {
      * 清理资源，子类可按需重写
      */
     protected void cleanup() {
-
+        // 重置 token 计数
+        currentTokenUsage = 0;
     }
 }

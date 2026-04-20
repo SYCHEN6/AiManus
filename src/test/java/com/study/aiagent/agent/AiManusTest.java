@@ -16,7 +16,7 @@ class AiManusTest {
     void run() {
         String userPrompt = "对象在上海青浦区，" +
                 "请帮我找到5公里内合适的约会地点，" +
-                "输出为PDF格式，发送到1641717914@qq.com邮箱";
+                "保存为PDF文件";
         String answer = aiManus.run(userPrompt);
         System.out.println(answer);
         Assertions.assertNotNull(answer);

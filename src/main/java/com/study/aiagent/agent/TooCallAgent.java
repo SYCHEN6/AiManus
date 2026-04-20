@@ -2,7 +2,9 @@ package com.study.aiagent.agent;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.cloud.ai.dashscope.api.DashScopeApi;
 import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.study.aiagent.agent.model.AgentState;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -11,6 +13,7 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -34,6 +37,9 @@ public class TooCallAgent extends ReActAgent{
     private final ToolCallingManager toolCallingManager;
 
     private final ChatOptions chatOptions;
+
+    // 记录工具调用次数，防止重复调用相同参数的工具
+    private final Map<String, Integer> toolResultCache = new HashMap<>();
 
     private ChatResponse toolCallChatResponse;
 
@@ -68,6 +74,8 @@ public class TooCallAgent extends ReActAgent{
                 getMessageList().add(new AssistantMessage("chatResponse is empty"));
                 return false;
             }
+            // 统计 token 消耗
+            extractAndUpdateTokenUsage(chatResponse);
             // 3. 解析工具调用结果
             AssistantMessage assistantMessage = chatResponse.getResult().getOutput();
             List<AssistantMessage.ToolCall> toolCallList = assistantMessage.getToolCalls();
@@ -97,24 +105,133 @@ public class TooCallAgent extends ReActAgent{
             log.info("need not to call tools");
             return "No tools need to calling";
         }
-        // 调用工具获取结果
+
+        List<AssistantMessage.ToolCall> toolCalls = toolCallChatResponse.getResult().getOutput().getToolCalls();
+        AssistantMessage assistantMessage = toolCallChatResponse.getResult().getOutput();
+
+        // 检查重复工具
+        if (hasRepeatedTools(toolCalls)) {
+            return handleRepeatedTools(toolCalls, assistantMessage);
+        }
+
+        // 更新缓存
+        updateToolCache(toolCalls);
+
+        // 执行工具
+        return executeAndHandleTools(assistantMessage);
+    }
+
+    private boolean hasRepeatedTools(List<AssistantMessage.ToolCall> toolCalls) {
+        for (AssistantMessage.ToolCall toolCall : toolCalls) {
+            String cacheKey = toolCall.name() + ":" + toolCall.arguments();
+            int callCount = toolResultCache.getOrDefault(cacheKey, 0);
+            if (callCount >= 3) {
+                log.warn("Tool {} has been called {} times, reject this round", toolCall.name(), callCount);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String handleRepeatedTools(List<AssistantMessage.ToolCall> toolCalls, AssistantMessage assistantMessage) {
+        getMessageList().add(assistantMessage);
+        List<ToolResponseMessage.ToolResponse> toolResponses = buildRepeatedToolResponses(toolCalls);
+        ToolResponseMessage virtualResponse = new ToolResponseMessage(toolResponses);
+        getMessageList().add(virtualResponse);
+
+        String result = formatToolResponses(toolResponses);
+        log.info("Virtual response (repeated tools detected): {}", result);
+        return result;
+    }
+
+    private List<ToolResponseMessage.ToolResponse> buildRepeatedToolResponses(List<AssistantMessage.ToolCall> toolCalls) {
+        List<ToolResponseMessage.ToolResponse> responses = new ArrayList<>();
+        for (AssistantMessage.ToolCall toolCall : toolCalls) {
+            String cacheKey = toolCall.name() + ":" + toolCall.arguments();
+            int callCount = toolResultCache.getOrDefault(cacheKey, 0);
+            String message = String.format("Tool '%s' has been called %d times with same parameters. Cannot execute. Please use other tools or terminate.",
+                    toolCall.name(), callCount);
+            responses.add(new ToolResponseMessage.ToolResponse(toolCall.id(), toolCall.name(), message));
+        }
+        return responses;
+    }
+
+    private void updateToolCache(List<AssistantMessage.ToolCall> toolCalls) {
+        for (AssistantMessage.ToolCall toolCall : toolCalls) {
+            String cacheKey = toolCall.name() + ":" + toolCall.arguments();
+            toolResultCache.put(cacheKey, toolResultCache.getOrDefault(cacheKey, 0) + 1);
+        }
+    }
+
+    private String executeAndHandleTools(AssistantMessage assistantMessage) {
+        try {
+            ToolExecutionResult toolExecutionResult = executeTools();
+            setMessageList(toolExecutionResult.conversationHistory());
+            ToolResponseMessage toolResponseMessage = (ToolResponseMessage) CollUtil.getLast(toolExecutionResult.conversationHistory());
+            checkTerminationCondition(toolResponseMessage);
+            return formatToolResponses(toolResponseMessage.getResponses());
+        } catch (Exception e) {
+            log.error("Tool execution failed: {}", e.getMessage());
+            return handleToolExecutionError(assistantMessage, e);
+        }
+    }
+
+    private ToolExecutionResult executeTools() {
         Prompt prompt = new Prompt(getMessageList(), this.chatOptions);
-        ToolExecutionResult toolExecutionResult = toolCallingManager.executeToolCalls(prompt, toolCallChatResponse);
-        // 将工具调用结果拼接到历史上下文后赋值给messageList
-        setMessageList(toolExecutionResult.conversationHistory());
-        ToolResponseMessage toolResponseMessage =
-                (ToolResponseMessage) CollUtil.getLast(toolExecutionResult.conversationHistory());
+        return toolCallingManager.executeToolCalls(prompt, toolCallChatResponse);
+    }
+
+    private void checkTerminationCondition(ToolResponseMessage toolResponseMessage) {
         boolean isTerminate = toolResponseMessage.getResponses().stream()
                 .anyMatch(toolResponse -> toolResponse.name().equals("doTerminate"));
         if (isTerminate) {
             log.info("task finish");
             setState(AgentState.FINISHED);
         }
-        String result = toolResponseMessage.getResponses().stream()
-                .map(toolResponse -> String.format("tool name: %s, tool result: %s",
-                        toolResponse.name(), toolResponse.responseData()))
-                .collect(Collectors.joining("\n"));
-        log.info("act result is {}", result);
+    }
+
+    private String handleToolExecutionError(AssistantMessage assistantMessage, Exception e) {
+        List<AssistantMessage.ToolCall> toolCalls = toolCallChatResponse.getResult().getOutput().getToolCalls();
+        List<ToolResponseMessage.ToolResponse> errorResponses = new ArrayList<>();
+        for (AssistantMessage.ToolCall toolCall : toolCalls) {
+            String errorMessage = String.format("Tool '%s' execution failed: %s", toolCall.name(), e.getMessage());
+            errorResponses.add(new ToolResponseMessage.ToolResponse(toolCall.id(), toolCall.name(), errorMessage));
+        }
+        ToolResponseMessage errorResponse = new ToolResponseMessage(errorResponses);
+        getMessageList().add(assistantMessage);
+        getMessageList().add(errorResponse);
+
+        String result = formatToolResponses(errorResponses);
+        log.info("Tool execution error response: {}", result);
         return result;
+    }
+
+    private String formatToolResponses(List<ToolResponseMessage.ToolResponse> responses) {
+        return responses.stream()
+                .map(resp -> String.format("tool name: %s, tool result: %s", resp.name(), resp.responseData()))
+                .collect(Collectors.joining("\n"));
+    }
+
+    private void extractAndUpdateTokenUsage(ChatResponse chatResponse) {
+        try {
+            Usage tokenUsage = chatResponse.getMetadata().getUsage();
+            if (tokenUsage == null) {
+                log.error("tokenUsage is null");
+                return;
+            }
+
+            int tokens = tokenUsage.getTotalTokens();
+            setCurrentTokenUsage(getCurrentTokenUsage() + tokens);
+            log.info("Token usage: +{}, total: {}/{}", tokens, getCurrentTokenUsage(), getTokenLimit());
+        } catch (Exception e) {
+            log.error("Failed to extract token usage: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    protected void cleanup() {
+        // 清空工具调用缓存，为下一次运行准备
+        toolResultCache.clear();
+        log.info("Tool result cache cleared");
     }
 }

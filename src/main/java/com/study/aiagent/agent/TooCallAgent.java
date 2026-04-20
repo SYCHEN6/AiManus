@@ -230,8 +230,10 @@ public class TooCallAgent extends ReActAgent{
 
     @Override
     protected void cleanup() {
-        // 清空工具调用缓存，为下一次运行准备
+        // 清空工具调用缓存
         toolResultCache.clear();
+        // 调用父类cleanup
+        super.cleanup();
         log.info("Tool result cache cleared");
     }
 }

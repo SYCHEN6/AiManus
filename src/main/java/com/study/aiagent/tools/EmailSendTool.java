@@ -2,6 +2,7 @@ package com.study.aiagent.tools;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import com.study.aiagent.tools.group.SystemCommToolGroup;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -12,12 +13,12 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 
 @Component
-public class EmailSendTool implements MyTool {
+public class EmailSendTool implements SystemCommToolGroup {
 
-    @Autowired
+    @Autowired(required = false)
     private JavaMailSender mailSender;
 
-    @Value("${spring.mail.username}")
+    @Value("${spring.mail.username:}")
     private String from;
 
     @Tool(description = "Send an email to the specified recipient")
@@ -26,6 +27,7 @@ public class EmailSendTool implements MyTool {
             @ToolParam(description = "Email subject") String subject,
             @ToolParam(description = "Email body content, supports HTML") String content,
             ToolContext context) {
+        if (mailSender == null) return "Email service not configured";
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");

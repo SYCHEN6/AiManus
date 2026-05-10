@@ -4,6 +4,7 @@ import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import com.study.aiagent.tools.group.ResearchToolGroup;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -17,14 +18,14 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
-public class WebSearchTool implements MyTool{
+public class WebSearchTool implements ResearchToolGroup {
 
     // SearchAPI 的搜索接口地址
     private static final String SEARCH_API_URL = "https://www.searchapi.io/api/v1/search";
 
     private final String apiKey;
 
-    public WebSearchTool(@Value("${search.api-key}") String apiKey) {
+    public WebSearchTool(@Value("${search.api-key:}") String apiKey) {
         this.apiKey = apiKey;
     }
 
@@ -32,7 +33,6 @@ public class WebSearchTool implements MyTool{
     public String searchWeb(
             @ToolParam(description = "Search query keyword") String query,
             ToolContext context) {
-        System.out.println("chatId = " + context.getContext().get("chatId"));
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("q", query);
         paramMap.put("api_key", apiKey);

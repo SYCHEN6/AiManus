@@ -3,10 +3,19 @@ spring:
     name: AI-Agent
   profiles:
     active: local
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
 # Agent 配置
 agent:
   token-limit: 30000
+
+# RAG 配置
+rag:
+  ingest-on-startup: false   # 首次运行前改为 true，完成后改回 false 避免重复写入
+  embed-model: text-embedding-v3
 #  ai:
 #    mcp:
 #      client:

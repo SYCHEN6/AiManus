@@ -1,45 +1,52 @@
 package com.study.aiagent.advisor;
 
-import org.springframework.ai.chat.client.advisor.api.*;
+import org.springframework.ai.chat.client.ChatClientRequest;
+import org.springframework.ai.chat.client.ChatClientResponse;
+import org.springframework.ai.chat.client.advisor.api.CallAdvisor;
+import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
+import org.springframework.ai.chat.client.advisor.api.StreamAdvisor;
+import org.springframework.ai.chat.client.advisor.api.StreamAdvisorChain;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.prompt.Prompt;
 import reactor.core.publisher.Flux;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 自定义 Re2 Advisor
  * 可提高大型语言模型的推理能力
  */
-public class ReReadingAdvisor implements CallAroundAdvisor, StreamAroundAdvisor {
-    private static final String DEFAULT_RE2_ADVISE_TEMPLATE = """
-			{re2_input_query}
-			Read the question again: {re2_input_query}
-			""";
+public class ReReadingAdvisor implements CallAdvisor, StreamAdvisor {
 
-    /**
-     * 执行请求前，改写Prompt
-     *
-     * @param advisedRequest 请求
-     * @return 修改后的请求参数
-     */
-    private AdvisedRequest before(AdvisedRequest advisedRequest) {
-        Map<String, Object> advisedUserParams = new HashMap<>(advisedRequest.userParams());
-        // 动态变量
-        advisedUserParams.put("re2_input_query", advisedRequest.userText());
-        return AdvisedRequest.from(advisedRequest)
-                .userText(DEFAULT_RE2_ADVISE_TEMPLATE)
-                .userParams(advisedUserParams)
-                .build();
+    private static final String RE2_TEMPLATE = """
+            {query}
+            Read the question again: {query}
+            """;
+
+    private ChatClientRequest before(ChatClientRequest request) {
+        Prompt prompt = request.prompt();
+        List<Message> instructions = new ArrayList<>(prompt.getInstructions());
+        for (int i = instructions.size() - 1; i >= 0; i--) {
+            if (instructions.get(i) instanceof UserMessage userMsg) {
+                String original = userMsg.getText();
+                String rewritten = RE2_TEMPLATE.replace("{query}", original);
+                instructions.set(i, new UserMessage(rewritten));
+                break;
+            }
+        }
+        return request.mutate().prompt(new Prompt(instructions, prompt.getOptions())).build();
     }
 
     @Override
-    public AdvisedResponse aroundCall(AdvisedRequest advisedRequest, CallAroundAdvisorChain chain) {
-        return chain.nextAroundCall(this.before(advisedRequest));
+    public ChatClientResponse adviseCall(ChatClientRequest request, CallAdvisorChain chain) {
+        return chain.nextCall(before(request));
     }
 
     @Override
-    public Flux<AdvisedResponse> aroundStream(AdvisedRequest advisedRequest, StreamAroundAdvisorChain chain) {
-        return chain.nextAroundStream(this.before(advisedRequest));
+    public Flux<ChatClientResponse> adviseStream(ChatClientRequest request, StreamAdvisorChain chain) {
+        return chain.nextStream(before(request));
     }
 
     @Override

@@ -2,15 +2,12 @@ package com.study.aiagent.agent;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
-import com.alibaba.cloud.ai.dashscope.api.DashScopeApi;
 import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.study.aiagent.agent.model.AgentState;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.metadata.Usage;
@@ -20,7 +17,6 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.model.tool.ToolExecutionResult;
 import org.springframework.ai.tool.ToolCallback;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -48,7 +44,7 @@ public class TooCallAgent extends ReActAgent{
         this.allTools = allTools;
         this.toolCallingManager = ToolCallingManager.builder().build();
         this.chatOptions = DashScopeChatOptions.builder()
-                        .withProxyToolCalls(true) // 禁用spring ai内置的工具调用机制，用户自定义维护选项和上下文
+                        .internalToolExecutionEnabled(true) // 禁用spring ai内置的工具调用机制，用户自定义维护选项和上下文
                         .build();
     }
 
@@ -64,7 +60,7 @@ public class TooCallAgent extends ReActAgent{
             Prompt prompt = new Prompt(getMessageList(), this.chatOptions);
             ChatResponse chatResponse = getChatClient().prompt(prompt)
                     .system(getSystemPrompt())
-                    .tools(allTools)
+                    .toolCallbacks(allTools)
                     .toolContext(Map.of("chatId", UUID.randomUUID().toString()))
                     .call()
                     .chatResponse();
@@ -136,7 +132,7 @@ public class TooCallAgent extends ReActAgent{
     private String handleRepeatedTools(List<AssistantMessage.ToolCall> toolCalls, AssistantMessage assistantMessage) {
         getMessageList().add(assistantMessage);
         List<ToolResponseMessage.ToolResponse> toolResponses = buildRepeatedToolResponses(toolCalls);
-        ToolResponseMessage virtualResponse = new ToolResponseMessage(toolResponses);
+        ToolResponseMessage virtualResponse = ToolResponseMessage.builder().responses(toolResponses).build();
         getMessageList().add(virtualResponse);
 
         String result = formatToolResponses(toolResponses);
@@ -197,7 +193,7 @@ public class TooCallAgent extends ReActAgent{
             String errorMessage = String.format("Tool '%s' execution failed: %s", toolCall.name(), e.getMessage());
             errorResponses.add(new ToolResponseMessage.ToolResponse(toolCall.id(), toolCall.name(), errorMessage));
         }
-        ToolResponseMessage errorResponse = new ToolResponseMessage(errorResponses);
+        ToolResponseMessage errorResponse = ToolResponseMessage.builder().responses(errorResponses).build();
         getMessageList().add(assistantMessage);
         getMessageList().add(errorResponse);
 
@@ -220,7 +216,8 @@ public class TooCallAgent extends ReActAgent{
                 return;
             }
 
-            int tokens = tokenUsage.getTotalTokens();
+            Integer totalTokens = tokenUsage.getTotalTokens();
+            int tokens = totalTokens != null ? totalTokens : 0;
             setCurrentTokenUsage(getCurrentTokenUsage() + tokens);
             log.info("Token usage: +{}, total: {}/{}", tokens, getCurrentTokenUsage(), getTokenLimit());
         } catch (Exception e) {

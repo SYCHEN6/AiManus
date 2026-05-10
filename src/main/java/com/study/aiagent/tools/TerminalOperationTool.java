@@ -1,5 +1,6 @@
 package com.study.aiagent.tools;
 
+import com.study.aiagent.tools.group.SystemCommToolGroup;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -12,12 +13,11 @@ import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 
 @Component
-public class TerminalOperationTool implements MyTool {
+public class TerminalOperationTool implements SystemCommToolGroup {
 
     @Tool(description = "Execute a command in the terminal")
     public String executeTerminalCommand(@ToolParam(description = "Command to execute in the terminal") String command,
-                                         ToolContext context) {
-        System.out.println("chatId = " + context.getContext().get("chatId"));
+            ToolContext context) {
         StringBuilder output = new StringBuilder();
         try {
             ProcessBuilder builder;

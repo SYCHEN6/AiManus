@@ -4,6 +4,7 @@ import com.study.aiagent.advisor.MyLoggerAdvisor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.tool.ToolCallback;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +21,7 @@ public class AiManus extends TooCallAgent {
             If you want to stop the interaction at any point, use the `terminate` tool/function call.
             """;
 
-    public AiManus(ToolCallback[] toolList, ChatModel dashscopeChatModel,
+    public AiManus(ToolCallback[] toolList, @Qualifier("dashScopeChatModel") ChatModel dashscopeChatModel,
                    @Value("${agent.token-limit:30000}") int tokenLimit) {
         super(toolList);
         this.setName("AiManus");

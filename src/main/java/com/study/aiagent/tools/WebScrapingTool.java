@@ -2,6 +2,7 @@ package com.study.aiagent.tools;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import com.study.aiagent.tools.group.ResearchToolGroup;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -10,12 +11,11 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 
 @Component
-public class WebScrapingTool implements MyTool{
+public class WebScrapingTool implements ResearchToolGroup {
 
     @Tool(description = "Scrape the content of a web page")
     public String scrapeWebPage(@ToolParam(description = "URL of the web page to scrape") String url,
-                                ToolContext context) {
-        System.out.println("chatId = " + context.getContext().get("chatId"));
+            ToolContext context) {
         try {
             Document doc = Jsoup.connect(url)
                     .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")

@@ -10,6 +10,7 @@ import org.openpdf.text.pdf.PdfWriter;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import com.study.aiagent.tools.group.FileToolGroup;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -24,7 +25,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 @Component
-public class PDFGenerationTool implements MyTool {
+public class PDFGenerationTool implements FileToolGroup {
 
 //    @Tool(description = "Generate a PDF file with given content")
 //    public String generatePDF(
@@ -58,23 +59,24 @@ public class PDFGenerationTool implements MyTool {
 //            return "Error generating PDF: " + e.getMessage();
 //        }
 //    }
-    @Tool(description = "Generate a PDF file with given content", returnDirect = true)
+    @Tool(description = "Generate a PDF file with given content")
     public String generatePDF(
             @ToolParam(description = "Name of the file to save the generated PDF") String fileName,
             @ToolParam(description = "Content to be included in the PDF") String content,
             ToolContext context) {
-        System.out.println("chatId = " + context.getContext().get("chatId"));
+        return doGeneratePdf(fileName, content);
+    }
+
+    public String doGeneratePdf(String fileName, String content) {
         String fileDir = FileConstant.FILE_SAVE_DIR + "/pdf";
         String filePath = fileDir + "/" + fileName;
         try {
             FileUtil.mkdir(fileDir);
 
-            // 创建文档
             Document document = new Document();
             PdfWriter.getInstance(document, new FileOutputStream(filePath));
             document.open();
 
-            // 从 classpath 加载字体，避免与系统环境绑定
             byte[] fontBytes;
             try (InputStream fontStream = PDFGenerationTool.class.getResourceAsStream("/font/NotoSansSC-Regular.ttf")) {
                 if (fontStream == null) {
@@ -85,10 +87,7 @@ public class PDFGenerationTool implements MyTool {
             BaseFont bfChinese = BaseFont.createFont("NotoSansSC-Regular.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, fontBytes, null);
             Font font = new Font(bfChinese, 12, Font.NORMAL);
 
-            // 添加内容
-            Paragraph paragraph = new Paragraph(content, font);
-            document.add(paragraph);
-
+            document.add(new Paragraph(content, font));
             document.close();
             return "PDF generated successfully to: " + filePath;
         } catch (Exception e) {
@@ -97,13 +96,18 @@ public class PDFGenerationTool implements MyTool {
     }
 
     @Tool(description = "parse pdf, and return content")
-    public String parserPDF(@ToolParam(description = "the pdf file path") String filePath, ToolContext context) {
+    public String parserPDF(@ToolParam(description = "the pdf file path") String filePath,
+            ToolContext context) {
+        return doParsePdf(filePath);
+    }
+
+    public String doParsePdf(String filePath) {
         try {
             validatePathNotEmpty(filePath);
             Path path = validatePathFormat(filePath);
             validateFileExists(path);
             validateFileExtension(filePath);
-            validateFileSize(path, 10 * 1024 * 1024); // 10MB限制
+            validateFileSize(path, 10 * 1024 * 1024);
             validateFileReadable(path);
             return extractPdfContent(path);
         } catch (IllegalArgumentException | IOException e) {

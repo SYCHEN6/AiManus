@@ -37,6 +37,10 @@ public class TooCallAgent extends ReActAgent{
     // 记录工具调用次数，防止重复调用相同参数的工具
     private final Map<String, Integer> toolResultCache = new HashMap<>();
 
+    // 连续空回复计数
+    private int emptyResponseCount = 0;
+    private static final int MAX_EMPTY_RESPONSE = 3;
+
     private ChatResponse toolCallChatResponse;
 
     public TooCallAgent(ToolCallback[] allTools) {
@@ -79,7 +83,17 @@ public class TooCallAgent extends ReActAgent{
             log.info("assistantMessage output is {}", result);
             if (CollUtil.isEmpty(toolCallList)) {
                 getMessageList().add(assistantMessage);
-                log.info("assistantMessage return toolCallList is empty");
+                if (StrUtil.isNotBlank(result)) {
+                    log.info("assistantMessage return toolCallList is empty, task completed");
+                    setState(AgentState.FINISHED);
+                } else {
+                    emptyResponseCount++;
+                    log.warn("assistantMessage return toolCallList is empty and no text, count={}/{}", emptyResponseCount, MAX_EMPTY_RESPONSE);
+                    if (emptyResponseCount >= MAX_EMPTY_RESPONSE) {
+                        log.warn("Empty response limit reached, force terminating");
+                        setState(AgentState.FINISHED);
+                    }
+                }
                 return false;
             }
             String toolCallInfo = toolCallList.stream()
@@ -227,9 +241,8 @@ public class TooCallAgent extends ReActAgent{
 
     @Override
     protected void cleanup() {
-        // 清空工具调用缓存
         toolResultCache.clear();
-        // 调用父类cleanup
+        emptyResponseCount = 0;
         super.cleanup();
         log.info("Tool result cache cleared");
     }
